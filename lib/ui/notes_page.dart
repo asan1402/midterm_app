@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/notes_bloc.dart';
 import '../bloc/notes_event.dart';
 import '../bloc/notes_state.dart';
+import '../bloc/theme_cubit.dart';
 import '../models/note.dart';
 
 class NotesPage extends StatefulWidget {
@@ -21,6 +22,28 @@ class _NotesPageState extends State<NotesPage> {
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  static IconData _themeIcon(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return Icons.light_mode;
+      case ThemeMode.dark:
+        return Icons.dark_mode;
+      case ThemeMode.system:
+        return Icons.brightness_auto;
+    }
+  }
+
+  static String _themeTooltip(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'Тема: светлая';
+      case ThemeMode.dark:
+        return 'Тема: тёмная';
+      case ThemeMode.system:
+        return 'Тема: системная';
+    }
   }
 
   void _toggleSearch() {
@@ -90,18 +113,34 @@ class _NotesPageState extends State<NotesPage> {
       child: Scaffold(
         appBar: AppBar(
           title: _searching
-              ? TextField(
-                  controller: _searchCtrl,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    hintText: 'Поиск...',
-                    border: InputBorder.none,
+              ? BlocBuilder<NotesBloc, NotesState>(
+                  buildWhen: (p, c) => p.notes != c.notes || p.query != c.query,
+                  builder: (context, state) => TextField(
+                    controller: _searchCtrl,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Поиск...',
+                      border: InputBorder.none,
+                      suffixText: 'Найдено: ${state.visibleNotes.length}',
+                    ),
+                    onChanged: (v) =>
+                        context.read<NotesBloc>().add(SearchNotes(v)),
                   ),
-                  onChanged: (v) =>
-                      context.read<NotesBloc>().add(SearchNotes(v)),
                 )
-              : const Text('Заметки'),
+              : BlocBuilder<NotesBloc, NotesState>(
+                  buildWhen: (p, c) => p.notes.length != c.notes.length,
+                  builder: (context, state) => Text(state.notes.isEmpty
+                      ? 'Заметки'
+                      : 'Заметки (${state.notes.length})'),
+                ),
           actions: [
+            BlocBuilder<ThemeCubit, ThemeMode>(
+              builder: (context, mode) => IconButton(
+                tooltip: _themeTooltip(mode),
+                icon: Icon(_themeIcon(mode)),
+                onPressed: () => context.read<ThemeCubit>().next(),
+              ),
+            ),
             IconButton(
               icon: Icon(_searching ? Icons.close : Icons.search),
               onPressed: _toggleSearch,
